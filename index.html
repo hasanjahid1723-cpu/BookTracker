@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Book Tracker</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <!-- Firebase Login / Registration Screen -->
+    <section id="authScreen" class="auth-screen">
+        <div class="auth-card">
+            <div class="auth-logo">📚</div>
+            <h1>My Book Tracker</h1>
+            <p class="auth-subtitle">Sign in to continue your reading journey.</p>
+
+            <div class="auth-tabs">
+                <button type="button" id="showLoginBtn" class="auth-tab active">Login</button>
+                <button type="button" id="showRegisterBtn" class="auth-tab">Create Account</button>
+            </div>
+
+            <form id="loginForm" class="auth-form">
+                <label for="loginEmail">Gmail / Email</label>
+                <input id="loginEmail" type="email" autocomplete="email"
+                    placeholder="you@example.com" required>
+
+                <label for="loginPassword">Password</label>
+                <input id="loginPassword" type="password"
+                    autocomplete="current-password"
+                    placeholder="Enter your password" required minlength="6">
+
+                <button type="submit" class="auth-submit">Login</button>
+            </form>
+
+            <form id="registerForm" class="auth-form hidden">
+                <label for="registerName">Your Name</label>
+                <input id="registerName" type="text" autocomplete="name"
+                    placeholder="Enter your name" required maxlength="80">
+
+                <label for="registerEmail">Gmail / Email</label>
+                <input id="registerEmail" type="email" autocomplete="email"
+                    placeholder="you@example.com" required>
+
+                <label for="registerPassword">Create Password</label>
+                <input id="registerPassword" type="password"
+                    autocomplete="new-password"
+                    placeholder="At least 6 characters" required minlength="6">
+
+                <button type="submit" class="auth-submit">Create Account</button>
+            </form>
+
+            <p id="authMessage" class="auth-message" role="status" aria-live="polite"></p>
+            <p class="auth-note">
+                Create a password for this website. Do not enter your email account's password.
+            </p>
+        </div>
+    </section>
+
+    <style>
+        .auth-screen {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            box-sizing: border-box;
+            background: linear-gradient(135deg, #f4eadb, #e6d2b7);
+            font-family: inherit;
+        }
+
+        .auth-card {
+            width: 100%;
+            max-width: 420px;
+            padding: 32px;
+            box-sizing: border-box;
+            background: #fffaf3;
+            border: 1px solid #e4d2bc;
+            border-radius: 20px;
+            box-shadow: 0 15px 45px rgba(77, 48, 25, .14);
+            color: #4b3020;
+        }
+
+        .auth-logo {
+            font-size: 42px;
+            text-align: center;
+        }
+
+        .auth-card h1 {
+            margin: 8px 0;
+            text-align: center;
+            font-size: 28px;
+        }
+
+        .auth-subtitle {
+            text-align: center;
+            margin: 0 0 22px;
+            color: #80644c;
+        }
+
+        .auth-tabs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .auth-tab {
+            padding: 11px 8px;
+            border: 1px solid #d7c1a7;
+            border-radius: 9px;
+            background: #f5ebde;
+            color: #593a25;
+            cursor: pointer;
+            font: inherit;
+        }
+
+        .auth-tab.active {
+            background: #6b4228;
+            color: white;
+            border-color: #6b4228;
+        }
+
+        .auth-form {
+            display: flex;
+            flex-direction: column;
+            gap: 9px;
+        }
+
+        .auth-form label {
+            font-weight: 600;
+            margin-top: 5px;
+        }
+
+        .auth-form input {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 12px;
+            border: 1px solid #d8c5ae;
+            border-radius: 9px;
+            background: white;
+            color: #382719;
+            font: inherit;
+        }
+
+        .auth-submit {
+            margin-top: 12px;
+            padding: 12px;
+            border: 0;
+            border-radius: 9px;
+            background: #6b4228;
+            color: white;
+            cursor: pointer;
+            font: inherit;
+            font-weight: 700;
+        }
+
+        .auth-submit:disabled {
+            opacity: .65;
+            cursor: wait;
+        }
+
+        .auth-message {
+            min-height: 20px;
+            margin: 14px 0 0;
+            color: #a12626;
+            font-size: .92rem;
+            overflow-wrap: anywhere;
+        }
+
+        .auth-note {
+            margin: 8px 0 0;
+            color: #80644c;
+            font-size: .82rem;
+            line-height: 1.5;
+        }
+
+        .auth-logout {
+            margin-left: 12px;
+            padding: 9px 13px;
+            border: 1px solid currentColor;
+            border-radius: 8px;
+            background: transparent;
+            color: inherit;
+            cursor: pointer;
+            font: inherit;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        @media (max-width: 520px) {
+            .auth-card {
+                padding: 24px 19px;
+            }
+        }
+    </style>
+
+    <div id="appShell" style="display:none;">
+
+        <!-- HEADER -->
+        <header class="header">
+            <div class="logo">📚 My Book Tracker</div>
+
+            <nav class="navbar">
+                <a href="#" id="homeLink" class="nav-link active">Home</a>
+                <a href="#" id="booksLink" class="nav-link">My Books</a>
+                <a href="#" id="statisticsLink" class="nav-link">Statistics</a>
+            </nav>
+
+            <div class="auth-user-controls">
+                <span id="signedInName"></span>
+                <button type="button" id="logoutBtn" class="auth-logout">Logout</button>
+            </div>
+        </header>
+
+        <!-- HOME PAGE -->
+        <main id="homePage">
+
+            <section class="hero">
+                <div class="hero-content">
+                    <h1>My Reading Journey 📚</h1>
+                    <p>
+                        Keep track of your books, reading progress,
+                        ratings and reviews.
+                    </p>
+                </div>
+            </section>
+
+            <!-- Main Statistics -->
+            <section class="stats-section">
+
+                <div class="stat-card">
+                    <div class="stat-icon">📚</div>
+                    <div>
+                        <h3>Total Books</h3>
+                        <strong id="totalBooks">0</strong>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon">✅</div>
+                    <div>
+                        <h3>Books Read</h3>
+                        <strong id="booksRead">0</strong>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon">🎯</div>
+                    <div>
+                        <h3>Yearly Goal</h3>
+                        <strong id="yearlyGoal">10</strong>
+                        <button id="setGoalBtn">Set Goal</button>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon">⭐</div>
+                    <div>
+                        <h3>Average Rating</h3>
+                        <strong id="averageRating">0.0</strong>
+                    </div>
+                </div>
+
+            </section>
+
+            <!-- Reading Progress -->
+            <section class="progress-card">
+                <div class="progress-header">
+                    <h2>📖 Reading Progress</h2>
+                    <span id="progressText">0 / 10 books</span>
+                </div>
+
+                <div class="progress-bar">
+                    <div id="progressFill" class="progress-fill" style="width:0%;"></div>
+                </div>
+
+                <div class="progress-bottom">
+                    <span id="progressPercent">0%</span>
+                    <p id="goalMessage">Start your reading journey!</p>
+                </div>
+            </section>
+
+            <!-- Recently Added Books -->
+            <section class="recent-books-card">
+                <h3>📖 Recently Added Books</h3>
+                <div id="recentBooks">
+                    <p class="no-recent-books">No books added yet.</p>
+                </div>
+            </section>
+
+            <!-- Motivation -->
+            <section class="motivation-card">
+                <h3>💭 Reading Motivation</h3>
+                <p>"A reader lives a thousand lives before he dies."</p>
+                <span>— George R. R. Martin</span>
+            </section>
+
+            <!-- Reading Streak -->
+            <section class="streak-card">
+                <div class="streak-icon">🔥</div>
+
+                <div class="streak-content">
+                    <h3>Reading Streak</h3>
+                    <strong id="readingStreak">0 Days</strong>
+                    <p id="streakMessage">Start your reading streak today!</p>
+                </div>
+
+                <button id="readTodayBtn">📖 I Read Today</button>
+            </section>
+
+        </main>
+
+        <!-- MY BOOKS PAGE -->
+        <main id="booksPage" class="hidden">
+
+            <section class="page-title">
+                <h1>📚 My Books</h1>
+                <p>Add and manage your personal book collection.</p>
+            </section>
+
+            <!-- Add / Edit Book -->
+            <section class="form-card">
+                <h2>➕ Add a New Book</h2>
+
+                <form id="bookForm">
+
+                    <div class="form-group">
+                        <label for="bookName">Book Name</label>
+                        <input type="text" id="bookName"
+                            placeholder="Enter book name" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="author">Author</label>
+                        <input type="text" id="author"
+                            placeholder="Enter author name" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="genre">Genre</label>
+                        <input type="text" id="genre"
+                            placeholder="e.g. Thriller, Sci-Fi, Horror" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="bookCover">Book Cover</label>
+                        <input type="file" id="bookCover" accept="image/*">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="status">Reading Status</label>
+                        <select id="status">
+                            <option value="Want to Read">Want to Read</option>
+                            <option value="Reading">Currently Reading</option>
+                            <option value="Finished">Finished</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="rating">Rating</label>
+                        <select id="rating">
+                            <option value="0">No Rating</option>
+                            <option value="1">⭐</option>
+                            <option value="2">⭐⭐</option>
+                            <option value="3">⭐⭐⭐</option>
+                            <option value="4">⭐⭐⭐⭐</option>
+                            <option value="5">⭐⭐⭐⭐⭐</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="review">Review</label>
+                        <textarea id="review" rows="5"
+                            placeholder="Write your thoughts about this book..."></textarea>
+                    </div>
+
+                    <button type="submit" id="saveBookBtn">➕ Add Book</button>
+                </form>
+            </section>
+
+            <!-- Search and Sort -->
+            <section class="search-sort">
+
+                <div class="search-box">
+                    <label for="bookSearch">🔎 Search Books</label>
+                    <input type="text" id="bookSearch"
+                        placeholder="Search by book name, author or genre...">
+                </div>
+
+                <div class="sort-box">
+                    <label for="bookSort">↕️ Sort Books</label>
+                    <select id="bookSort">
+                        <option value="newest">Newest Added</option>
+                        <option value="oldest">Oldest Added</option>
+                        <option value="nameAZ">Book Name (A → Z)</option>
+                        <option value="nameZA">Book Name (Z → A)</option>
+                        <option value="ratingHigh">Rating (High → Low)</option>
+                        <option value="ratingLow">Rating (Low → High)</option>
+                    </select>
+                </div>
+
+            </section>
+
+            <!-- Book Filters -->
+            <section class="filters">
+                <button class="filter-btn active" data-filter="All">All Books</button>
+                <button class="filter-btn" data-filter="Want to Read">Want to Read</button>
+                <button class="filter-btn" data-filter="Reading">Currently Reading</button>
+                <button class="filter-btn" data-filter="Finished">Finished</button>
+            </section>
+
+            <!-- Bookshelf -->
+            <section id="bookshelf" class="bookshelf"></section>
+
+        </main>
+
+        <!-- STATISTICS PAGE -->
+        <main id="statisticsPage" class="hidden">
+
+            <section class="page-title">
+                <h1>📊 Statistics Dashboard</h1>
+                <p>See your reading habits and progress.</p>
+            </section>
+
+            <!-- Clickable Statistics Cards -->
+            <section class="statistics-grid">
+
+                <div class="statistics-card stat-total"
+                     data-status-filter="All"
+                     role="button"
+                     tabindex="0"
+                     aria-label="Show all books">
+                    <span>📚</span>
+                    <h3>Total Books</h3>
+                    <strong id="statTotalBooks">0</strong>
+                </div>
+
+                <div class="statistics-card stat-finished"
+                     data-status-filter="Finished"
+                     role="button"
+                     tabindex="0"
+                     aria-label="Show finished books">
+                    <span>✅</span>
+                    <h3>Finished</h3>
+                    <strong id="statFinished">0</strong>
+                </div>
+
+                <div class="statistics-card stat-reading"
+                     data-status-filter="Reading"
+                     role="button"
+                     tabindex="0"
+                     aria-label="Show currently reading books">
+                    <span>📖</span>
+                    <h3>Currently Reading</h3>
+                    <strong id="statReading">0</strong>
+                </div>
+
+                <div class="statistics-card stat-want"
+                     data-status-filter="Want to Read"
+                     role="button"
+                     tabindex="0"
+                     aria-label="Show books to read">
+                    <span>📌</span>
+                    <h3>Want to Read</h3>
+                    <strong id="statWantToRead">0</strong>
+                </div>
+
+                <div class="statistics-card stat-rating">
+                    <span>⭐</span>
+                    <h3>Average Rating</h3>
+                    <strong id="statAverageRating">0.0</strong>
+                </div>
+
+                <div class="statistics-card stat-goal">
+                    <span>🎯</span>
+                    <h3>Yearly Goal</h3>
+                    <strong id="statYearlyGoal">10</strong>
+                </div>
+
+            </section>
+
+            <!-- Genre Breakdown -->
+            <section class="genre-card">
+                <h2>📚 Genre Breakdown</h2>
+                <div id="genreBreakdown">
+                    <p>No books available.</p>
+                </div>
+            </section>
+
+        </main>
+
+        <!-- BOOK DETAILS MODAL -->
+        <div id="bookModal" class="modal hidden">
+
+            <div class="modal-content">
+
+                <button id="closeModalBtn" class="close-modal" aria-label="Close">
+                    ✕
+                </button>
+
+                <div class="modal-body">
+
+                    <div class="modal-cover-container">
+                        <img id="modalBookCover"
+                             class="modal-book-cover"
+                             src=""
+                             alt="Book Cover">
+                    </div>
+
+                    <div class="modal-book-info">
+
+                        <h2 id="modalBookName">Book Name</h2>
+
+                        <p class="modal-author">
+                            ✍️ <span id="modalAuthor">Author</span>
+                        </p>
+
+                        <div class="modal-details">
+
+                            <p>
+                                <strong>📚 Genre:</strong>
+                                <span id="modalGenre">-</span>
+                            </p>
+
+                            <p>
+                                <strong>📌 Status:</strong>
+                                <span id="modalStatus">-</span>
+                            </p>
+
+                            <p>
+                                <strong>⭐ Rating:</strong>
+                                <span id="modalRating">-</span>
+                            </p>
+
+                            <p>
+                                <strong>📅 Added:</strong>
+                                <span id="modalAddedDate">-</span>
+                            </p>
+
+                        </div>
+
+                        <div class="modal-review">
+                            <h3>📝 My Review</h3>
+                            <p id="modalReview">No review added.</p>
+                        </div>
+
+                        <div class="modal-actions">
+                            <button id="modalEditBtn" class="edit-btn">✏️ Edit</button>
+                            <button id="modalDeleteBtn" class="delete-btn">🗑️ Delete</button>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- FOOTER -->
+        <footer class="footer">
+            <p>© 2026 My Book Tracker | Made by Jahid</p>
+        </footer>
+
+    </div><!-- /appShell -->
+
+    <!-- Existing MyBookTracker features -->
+    <script src="script.js"></script>
+
+    <!-- Firebase Authentication -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
+
+        import {
+            getAuth,
+            onAuthStateChanged,
+            createUserWithEmailAndPassword,
+            signInWithEmailAndPassword,
+            updateProfile,
+            signOut
+        } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDefA42IiAb3jLNNK_UOyNuOJNI4DhaJ7E",
+            authDomain: "mybooktracker-67b4a.firebaseapp.com",
+            projectId: "mybooktracker-67b4a",
+            storageBucket: "mybooktracker-67b4a.firebasestorage.app",
+            messagingSenderId: "137800897044",
+            appId: "1:137800897044:web:7b1d67187f9aa6e9da8d01",
+            measurementId: "G-HNZ32N5Q6L"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+
+        const authScreen = document.getElementById("authScreen");
+        const appShell = document.getElementById("appShell");
+        const loginForm = document.getElementById("loginForm");
+        const registerForm = document.getElementById("registerForm");
+        const authMessage = document.getElementById("authMessage");
+        const showLoginBtn = document.getElementById("showLoginBtn");
+        const showRegisterBtn = document.getElementById("showRegisterBtn");
+        const logoutBtn = document.getElementById("logoutBtn");
+
+        function showMessage(message, isError = true) {
+            authMessage.textContent = message;
+            authMessage.style.color = isError ? "#a12626" : "#276749";
+        }
+
+        function setAuthMode(mode) {
+            const isLogin = mode === "login";
+
+            loginForm.classList.toggle("hidden", !isLogin);
+            registerForm.classList.toggle("hidden", isLogin);
+
+            showLoginBtn.classList.toggle("active", isLogin);
+            showRegisterBtn.classList.toggle("active", !isLogin);
+
+            showMessage("");
+        }
+
+        showLoginBtn.addEventListener("click", () => setAuthMode("login"));
+        showRegisterBtn.addEventListener("click", () => setAuthMode("register"));
+
+        function readableAuthError(error) {
+            const messages = {
+                "auth/email-already-in-use":
+                    "This email already has an account. Please log in.",
+                "auth/invalid-email":
+                    "Please enter a valid email address.",
+                "auth/weak-password":
+                    "Password must be at least 6 characters.",
+                "auth/invalid-credential":
+                    "Email or password is incorrect.",
+                "auth/user-not-found":
+                    "No account found. Please create an account first.",
+                "auth/wrong-password":
+                    "Email or password is incorrect.",
+                "auth/too-many-requests":
+                    "Too many attempts. Please try again later.",
+                "auth/network-request-failed":
+                    "Network error. Check your internet connection."
+            };
+
+            return messages[error.code] ||
+                (error.message || "Something went wrong.");
+        }
+
+        async function setFormBusy(form, busy) {
+            const button = form.querySelector('button[type="submit"]');
+
+            if (!button) return;
+
+            if (busy) {
+                button.dataset.originalText = button.textContent;
+                button.disabled = true;
+                button.textContent = "Please wait...";
+            } else {
+                button.disabled = false;
+                button.textContent =
+                    button.dataset.originalText || button.textContent;
+            }
+        }
+
+        registerForm.addEventListener("submit", async (event) => {
+            event.preventDefault();
+            showMessage("");
+
+            await setFormBusy(registerForm, true);
+
+            const name = document.getElementById("registerName").value.trim();
+            const email = document.getElementById("registerEmail").value.trim();
+            const password = document.getElementById("registerPassword").value;
+
+            try {
+                const credential =
+                    await createUserWithEmailAndPassword(auth, email, password);
+
+                await updateProfile(credential.user, { displayName: name });
+
+                registerForm.reset();
+                showMessage("Account created successfully!", false);
+            } catch (error) {
+                showMessage(readableAuthError(error));
+            } finally {
+                await setFormBusy(registerForm, false);
+            }
+        });
+
+        loginForm.addEventListener("submit", async (event) => {
+            event.preventDefault();
+            showMessage("");
+
+            await setFormBusy(loginForm, true);
+
+            const email = document.getElementById("loginEmail").value.trim();
+            const password = document.getElementById("loginPassword").value;
+
+            try {
+                await signInWithEmailAndPassword(auth, email, password);
+                loginForm.reset();
+            } catch (error) {
+                showMessage(readableAuthError(error));
+            } finally {
+                await setFormBusy(loginForm, false);
+            }
+        });
+
+        logoutBtn.addEventListener("click", async () => {
+            try {
+                await signOut(auth);
+            } catch (error) {
+                alert(readableAuthError(error));
+            }
+        });
+
+        onAuthStateChanged(auth, (user) => {
+            const signedIn = Boolean(user);
+
+            authScreen.style.display = signedIn ? "none" : "flex";
+            appShell.style.display = signedIn ? "block" : "none";
+
+            document.getElementById("signedInName").textContent =
+                signedIn ? `Hi, ${user.displayName || user.email}` : "";
+
+            if (!signedIn) {
+                setAuthMode("login");
+            }
+
+            document.body.style.overflow = signedIn ? "" : "auto";
+        });
+    </script>
+
+</body>
+</html>
