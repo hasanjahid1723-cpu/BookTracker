@@ -1,0 +1,14 @@
+{
+  "name": "My Book Tracker",
+  "short_name": "BookTracker",
+  "description": "Track your books, reading progress, ratings and reviews.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f4eadb",
+  "theme_color": "#6b4228",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
