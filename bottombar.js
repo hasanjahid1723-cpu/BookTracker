@@ -70,7 +70,7 @@ if (appShell && typeof window.showPage === "function") {
 
     const tabs = [
         { page: "home", icon: "🏠", label: "Home" },
-        { page: "books", icon: "📚", label: "Books" },
+        { page: "books", icon: "➕", label: "Add Book" },
         { page: "wishlist", icon: "🛒", label: "Wishlist" },
         { page: "statistics", icon: "📊", label: "Stats" }
     ];
@@ -114,6 +114,14 @@ if (appShell && typeof window.showPage === "function") {
             window.scrollTo({ top: 0, behavior: "smooth" });
         });
     });
+
+    /* কম্পিউটারের উপরের মেনু ও পেজের শিরোনামও একই নামে */
+
+    const booksLink = document.getElementById("booksLink");
+    if (booksLink) booksLink.textContent = "Add Book";
+
+    const booksTitle = document.querySelector("#booksPage .page-title h1");
+    if (booksTitle) booksTitle.textContent = "➕ Add Book";
 
     setActive("home");
 }
