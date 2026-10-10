@@ -75,7 +75,8 @@ style.textContent = `
     .wl-buy-btn { background: #2f7d4f; color: #fff; }
     .wl-undo-btn { background: #e6d2b7; color: #593a25; }
     .wl-remove-btn { background: #b83a3a; color: #fff; }
-    .wl-bought { opacity: .65; }
+    .wl-move-btn { background: #6b4228; color: #fff; }
+    .wl-bought { opacity: .8; }
     .wl-bought h3 { text-decoration: line-through; }
     .wl-empty { text-align: center; padding: 30px 10px; color: #80644c; }
     #wlForm textarea { min-height: 70px; }
@@ -194,6 +195,9 @@ function itemCard(item) {
                 ${noteHTML}
             </div>
             <div class="wl-actions">
+                ${item.bought
+                    ? `<button class="wl-move-btn" data-action="move">📚 Move to My Books</button>`
+                    : ""}
                 <button class="${item.bought ? "wl-undo-btn" : "wl-buy-btn"}" data-action="toggle">
                     ${item.bought ? "↩️ Undo" : "✅ Bought"}
                 </button>
@@ -289,6 +293,8 @@ wlList.addEventListener("click", async function (event) {
             await updateDoc(doc(db, "users", uid, "wishlist", id), {
                 bought: !item.bought
             });
+        } else if (button.dataset.action === "move") {
+            await moveToMyBooks(item);
         } else if (button.dataset.action === "remove") {
             if (confirm(`Remove "${item.title}" from your wishlist?`)) {
                 await deleteDoc(doc(db, "users", uid, "wishlist", id));
@@ -299,6 +305,42 @@ wlList.addEventListener("click", async function (event) {
         alert("Something went wrong: " + error.message);
     }
 });
+
+
+/* ================= MOVE TO MY BOOKS ================= */
+
+async function moveToMyBooks(item) {
+    const genre = prompt(
+        `"${item.title}" — What is the genre?`,
+        "General"
+    );
+
+    if (genre === null) return;
+
+    const user = auth.currentUser;
+    const bookId = Date.now();
+
+    const book = {
+        id: bookId,
+        addedAt: bookId,
+        ownerId: uid,
+        ownerName: user && user.displayName
+            ? user.displayName
+            : (user && user.email ? user.email.split("@")[0] : "Reader"),
+        name: item.title,
+        author: item.author || "Unknown",
+        genre: genre.trim() || "General",
+        cover: "",
+        status: "Want to Read",
+        rating: 0,
+        review: item.note || ""
+    };
+
+    await setDoc(doc(db, "sharedBooks", uid + "_" + bookId), book);
+    await deleteDoc(doc(db, "users", uid, "wishlist", item.id));
+
+    alert(`✅ "${item.title}" was moved to My Books.`);
+}
 
 
 /* ================= LOAD (শুধু নিজের wishlist) ================= */
