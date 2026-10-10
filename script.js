@@ -82,6 +82,21 @@ let currentFilter = "All";
 
 let currentModalBookId = null;
 
+/* "all" = সবার বই, "mine" = শুধু নিজের বই */
+let viewMode = "all";
+
+function myUid() {
+    return window.cloud ? window.cloud.getUid() : null;
+}
+
+function isMine(book) {
+    return Boolean(book) && book.ownerId === myUid();
+}
+
+function myBooks() {
+    return books.filter(isMine);
+}
+
 
 /* =========================================================
    CLOUD (Firebase) - cloud.js ফাইল window.cloud তৈরি করে
@@ -115,6 +130,11 @@ function cloudError(error) {
 /* cloud.js লগইনের পর এই ফাংশনগুলো ডাকে */
 
 window.bookApp = {
+    setBooks: function (newBooks) {
+        books = newBooks || [];
+        updateAll();
+    },
+
     setData: function (newBooks, settings) {
         books = newBooks || [];
 
@@ -316,6 +336,8 @@ function createNewBook(coverImage) {
     const newBook = {
         id: Date.now(),
         addedAt: Date.now(),
+        ownerId: myUid(),
+        ownerName: window.cloud ? window.cloud.getName() : "Reader",
         name: bookName.value.trim(),
         author: author.value.trim(),
         genre: genre.value.trim(),
@@ -347,7 +369,7 @@ function resetForm() {
 /* ================= DISPLAY BOOKS ================= */
 
 function displayBooks() {
-    let filteredBooks = [...books];
+    let filteredBooks = viewMode === "mine" ? myBooks() : [...books];
 
     /* STATUS FILTER */
 
@@ -468,6 +490,10 @@ function displayBooks() {
                         📚 ${escapeHTML(book.genre)}
                     </p>
 
+                    <p class="book-owner">
+                        👤 ${isMine(book) ? "You" : escapeHTML(book.ownerName || "Reader")}
+                    </p>
+
                     <span class="book-status">
                         ${escapeHTML(book.status)}
                     </span>
@@ -486,6 +512,9 @@ function displayBooks() {
                             : ""
                     }
 
+                    ${
+                        isMine(book)
+                            ? `
                     <div class="book-actions">
 
                         <button
@@ -503,6 +532,9 @@ function displayBooks() {
                         </button>
 
                     </div>
+                            `
+                            : ""
+                    }
 
                     <button
                         class="details-btn"
@@ -521,7 +553,7 @@ function displayBooks() {
 /* ================= EDIT BOOK ================= */
 
 function editBook(id) {
-    const book = books.find(item => item.id === id);
+    const book = books.find(item => item.id === id && isMine(item));
 
     if (!book) {
         return;
@@ -551,7 +583,7 @@ function editBook(id) {
 /* ================= DELETE BOOK ================= */
 
 function deleteBook(id) {
-    const book = books.find(item => item.id === id);
+    const book = books.find(item => item.id === id && isMine(item));
 
     if (!book) {
         return;
@@ -601,6 +633,37 @@ filterButtons.forEach(button => {
 });
 
 
+/* ================= EVERYONE / MINE TOGGLE ================= */
+
+const viewToggle = document.createElement("section");
+viewToggle.className = "filters";
+viewToggle.innerHTML = `
+    <button class="filter-btn active" data-view="all">👥 Everyone's Books</button>
+    <button class="filter-btn" data-view="mine">🙋 My Books Only</button>
+`;
+
+const filtersSection = document.querySelector(".filters");
+filtersSection.parentNode.insertBefore(viewToggle, filtersSection);
+
+const viewButtons = viewToggle.querySelectorAll("button");
+
+function setViewMode(mode) {
+    viewMode = mode;
+
+    viewButtons.forEach(button => {
+        button.classList.toggle("active", button.dataset.view === mode);
+    });
+
+    displayBooks();
+}
+
+viewButtons.forEach(button => {
+    button.addEventListener("click", function () {
+        setViewMode(this.dataset.view);
+    });
+});
+
+
 /* ================= ANIMATED STATISTICS ================= */
 
 function animateStatNumber(element, target, decimals = 0) {
@@ -641,6 +704,8 @@ function animateStatNumber(element, target, decimals = 0) {
 /* ================= UPDATE STATISTICS ================= */
 
 function updateStatistics() {
+    const books = myBooks();
+
     const total = books.length;
 
     const finished = books.filter(
@@ -760,6 +825,8 @@ setGoalBtn.addEventListener("click", function () {
 /* ================= RECENT BOOKS ================= */
 
 function updateRecentBooks() {
+    const books = myBooks();
+
     if (books.length === 0) {
         recentBooks.innerHTML = `
             <p class="no-recent-books">
@@ -815,6 +882,8 @@ function updateRecentBooks() {
 /* ================= GENRE BREAKDOWN ================= */
 
 function updateGenreBreakdown() {
+    const books = myBooks();
+
     if (books.length === 0) {
         genreBreakdown.innerHTML = `
             <p>No books available.</p>
@@ -1045,6 +1114,16 @@ function openBookModal(id) {
         modalAddedDate.textContent = "Unknown";
     }
 
+    /* OWNER */
+
+    if (!isMine(book)) {
+        modalAddedDate.textContent +=
+            " • Added by " + (book.ownerName || "Reader");
+    }
+
+    modalEditBtn.style.display = isMine(book) ? "" : "none";
+    modalDeleteBtn.style.display = isMine(book) ? "" : "none";
+
     /* REVIEW */
 
     modalReview.textContent =
@@ -1142,6 +1221,8 @@ document.querySelectorAll(
 ).forEach(card => {
 
     function openFilteredBooks() {
+        setViewMode("mine");
+
         currentFilter = card.dataset.statusFilter || "All";
 
         /* Update active filter button */
@@ -1185,6 +1266,8 @@ document.querySelectorAll(
 /* ================= STATISTICS CARD CLICK ================= */
 
 function openBooksFromStatistics(filter) {
+    setViewMode("mine");
+
     currentFilter = filter;
 
     // আগের সার্চ মুছে দাও

@@ -1,7 +1,8 @@
 import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
 import {
-    getFirestore, doc, collection, getDocs, getDoc, setDoc, deleteDoc
+    getFirestore, doc, collection, getDocs, getDoc, setDoc, deleteDoc,
+    onSnapshot, query, where
 } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -19,29 +20,66 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 
 let uid = null;
+let unsubscribe = null;
 
 function needLogin() {
     return Promise.reject(new Error("Not logged in"));
 }
 
+function nameOf(user) {
+    if (!user) return "Reader";
+    if (user.displayName) return user.displayName;
+    if (user.email) return user.email.split("@")[0];
+    return "Reader";
+}
+
+/* সবার বই থাকে sharedBooks-এ। প্রতিটা বইয়ে ownerId ও ownerName থাকে। */
+
 window.cloud = {
+    getUid: function () { return uid; },
+
+    getName: function () { return nameOf(auth.currentUser); },
+
     saveBook: function (book) {
         if (!uid) return needLogin();
-        return setDoc(doc(db, "users", uid, "books", String(book.id)), book);
+        return setDoc(doc(db, "sharedBooks", uid + "_" + book.id), book);
     },
 
     deleteBook: function (id) {
         if (!uid) return needLogin();
-        return deleteDoc(doc(db, "users", uid, "books", String(id)));
+        return deleteDoc(doc(db, "sharedBooks", uid + "_" + id));
     },
 
+    /* লক্ষ্য, গোল ও স্ট্রিক শুধু নিজের, তাই আলাদা জায়গায় */
     saveSettings: function (settings) {
         if (!uid) return needLogin();
         return setDoc(doc(db, "users", uid, "settings", "main"), settings);
     }
 };
 
-async function migrateOldLocalBooks(myUid) {
+/* আগের (ব্যক্তিগত) বইগুলো সবার তালিকায় সরিয়ে আনে */
+async function moveOldPrivateBooks(user) {
+    const oldSnap = await getDocs(collection(db, "users", user.uid, "books"));
+
+    for (const d of oldSnap.docs) {
+        const book = d.data();
+
+        book.ownerId = user.uid;
+        book.ownerName = nameOf(user);
+
+        await setDoc(doc(db, "sharedBooks", user.uid + "_" + book.id), book);
+        await deleteDoc(d.ref);
+    }
+}
+
+/* এই ডিভাইসের localStorage-এর পুরনো বই (শুধু একবার, যদি নিজের কোনো বই না থাকে) */
+async function offerLocalBooks(user) {
+    const mine = await getDocs(
+        query(collection(db, "sharedBooks"), where("ownerId", "==", user.uid))
+    );
+
+    if (!mine.empty) return null;
+
     let oldBooks = [];
 
     try {
@@ -54,13 +92,16 @@ async function migrateOldLocalBooks(myUid) {
 
     const ok = confirm(
         "এই ডিভাইসে আগের " + oldBooks.length +
-        "টি বই পাওয়া গেছে। সেগুলো আপনার অ্যাকাউন্টে তুলে নেব?"
+        "টি বই পাওয়া গেছে। সেগুলো আপনার অ্যাকাউন্টে তুলে নেব? (সবাই দেখতে পাবে)"
     );
 
     if (!ok) return null;
 
     for (const book of oldBooks) {
-        await setDoc(doc(db, "users", myUid, "books", String(book.id)), book);
+        book.ownerId = user.uid;
+        book.ownerName = nameOf(user);
+
+        await setDoc(doc(db, "sharedBooks", user.uid + "_" + book.id), book);
     }
 
     const settings = {
@@ -69,12 +110,17 @@ async function migrateOldLocalBooks(myUid) {
         lastReadingDate: localStorage.getItem("lastReadingDate") || ""
     };
 
-    await setDoc(doc(db, "users", myUid, "settings", "main"), settings);
+    await setDoc(doc(db, "users", user.uid, "settings", "main"), settings);
 
-    return { books: oldBooks, settings: settings };
+    return settings;
 }
 
 onAuthStateChanged(auth, async function (user) {
+    if (unsubscribe) {
+        unsubscribe();
+        unsubscribe = null;
+    }
+
     if (!user) {
         uid = null;
         window.bookApp.reset();
@@ -85,24 +131,40 @@ onAuthStateChanged(auth, async function (user) {
     const myUid = user.uid;
 
     try {
-        const booksSnap = await getDocs(collection(db, "users", myUid, "books"));
-        let books = booksSnap.docs.map(function (d) { return d.data(); });
+        await moveOldPrivateBooks(user);
 
-        const settingsSnap = await getDoc(doc(db, "users", myUid, "settings", "main"));
-        let settings = settingsSnap.exists() ? settingsSnap.data() : {};
+        let settings = null;
 
-        if (books.length === 0) {
-            const migrated = await migrateOldLocalBooks(myUid);
+        const migratedSettings = await offerLocalBooks(user);
 
-            if (migrated) {
-                books = migrated.books;
-                settings = migrated.settings;
-            }
+        if (migratedSettings) {
+            settings = migratedSettings;
+        } else {
+            const snap = await getDoc(doc(db, "users", myUid, "settings", "main"));
+            settings = snap.exists() ? snap.data() : {};
         }
 
-        if (uid !== myUid) return;
+        let first = true;
 
-        window.bookApp.setData(books, settings);
+        unsubscribe = onSnapshot(
+            collection(db, "sharedBooks"),
+            function (snap) {
+                if (uid !== myUid) return;
+
+                const list = snap.docs.map(function (d) { return d.data(); });
+
+                if (first) {
+                    first = false;
+                    window.bookApp.setData(list, settings);
+                } else {
+                    window.bookApp.setBooks(list);
+                }
+            },
+            function (error) {
+                console.error(error);
+                alert("ডেটা লোড করা যায়নি: " + error.message);
+            }
+        );
     } catch (error) {
         console.error(error);
         alert("ডেটা লোড করা যায়নি: " + error.message);
