@@ -50,7 +50,6 @@ const readingStreak = document.getElementById("readingStreak");
 const streakMessage = document.getElementById("streakMessage");
 const readTodayBtn = document.getElementById("readTodayBtn");
 
-
 /* ================= MODAL ELEMENTS ================= */
 
 const bookModal = document.getElementById("bookModal");
@@ -71,16 +70,119 @@ const modalDeleteBtn = document.getElementById("modalDeleteBtn");
 
 /* ================= DATA ================= */
 
-let books = JSON.parse(localStorage.getItem("myBooks")) || [];
+let books = [];
 
 let editingBookId = null;
 
-let yearlyGoalValue =
-    Number(localStorage.getItem("yearlyGoal")) || 10;
+let yearlyGoalValue = 10;
+let streakValue = 0;
+let lastReadingDateValue = "";
 
 let currentFilter = "All";
 
 let currentModalBookId = null;
+
+
+/* =========================================================
+   CLOUD (Firebase) - cloud.js ফাইল window.cloud তৈরি করে
+========================================================= */
+
+function saveBookToCloud(book) {
+    return window.cloud ? window.cloud.saveBook(book) : Promise.resolve();
+}
+
+function deleteBookFromCloud(id) {
+    return window.cloud ? window.cloud.deleteBook(id) : Promise.resolve();
+}
+
+function saveSettings() {
+    if (!window.cloud) {
+        return Promise.resolve();
+    }
+
+    return window.cloud.saveSettings({
+        yearlyGoal: yearlyGoalValue,
+        readingStreak: streakValue,
+        lastReadingDate: lastReadingDateValue
+    });
+}
+
+function cloudError(error) {
+    console.error(error);
+    alert("Could not save to the cloud: " + error.message);
+}
+
+/* cloud.js লগইনের পর এই ফাংশনগুলো ডাকে */
+
+window.bookApp = {
+    setData: function (newBooks, settings) {
+        books = newBooks || [];
+
+        yearlyGoalValue = Number(settings.yearlyGoal) || 10;
+        streakValue = Number(settings.readingStreak) || 0;
+        lastReadingDateValue = settings.lastReadingDate || "";
+
+        editingBookId = null;
+        currentFilter = "All";
+
+        updateAll();
+        showPage("home");
+    },
+
+    reset: function () {
+        books = [];
+        yearlyGoalValue = 10;
+        streakValue = 0;
+        lastReadingDateValue = "";
+        editingBookId = null;
+
+        updateAll();
+    }
+};
+
+
+/* ================= IMAGE COMPRESS =================
+   ছবি ছোট করা হয় যাতে ফ্রি Firestore-এ জমা রাখা যায় */
+
+function compressImage(file, callback) {
+    const reader = new FileReader();
+
+    reader.onload = function (e) {
+        const img = new Image();
+
+        img.onload = function () {
+            const maxSize = 400;
+
+            let width = img.width;
+            let height = img.height;
+
+            if (width > height && width > maxSize) {
+                height = Math.round(height * (maxSize / width));
+                width = maxSize;
+            } else if (height >= width && height > maxSize) {
+                width = Math.round(width * (maxSize / height));
+                height = maxSize;
+            }
+
+            const canvas = document.createElement("canvas");
+            canvas.width = width;
+            canvas.height = height;
+
+            canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+
+            callback(canvas.toDataURL("image/jpeg", 0.7));
+        };
+
+        img.onerror = function () {
+            alert("This image could not be read.");
+            callback("");
+        };
+
+        img.src = e.target.result;
+    };
+
+    reader.readAsDataURL(file);
+}
 
 
 /* ================= PAGE NAVIGATION ================= */
@@ -138,13 +240,6 @@ function escapeHTML(text) {
 }
 
 
-/* ================= SAVE BOOKS ================= */
-
-function saveBooks() {
-    localStorage.setItem("myBooks", JSON.stringify(books));
-}
-
-
 /* ================= ADD / EDIT BOOK ================= */
 
 bookForm.addEventListener("submit", function (event) {
@@ -180,21 +275,20 @@ bookForm.addEventListener("submit", function (event) {
             const file = bookCover.files[0];
 
             if (file) {
-                const reader = new FileReader();
+                compressImage(file, function (coverData) {
+                    if (coverData) {
+                        books[bookIndex].cover = coverData;
+                    }
 
-                reader.onload = function (e) {
-                    books[bookIndex].cover = e.target.result;
-
-                    saveBooks();
+                    saveBookToCloud(books[bookIndex]).catch(cloudError);
                     updateAll();
                     resetForm();
-                };
+                });
 
-                reader.readAsDataURL(file);
                 return;
             }
 
-            saveBooks();
+            saveBookToCloud(books[bookIndex]).catch(cloudError);
             updateAll();
             resetForm();
         }
@@ -206,13 +300,9 @@ bookForm.addEventListener("submit", function (event) {
         const file = bookCover.files[0];
 
         if (file) {
-            const reader = new FileReader();
-
-            reader.onload = function (e) {
-                createNewBook(e.target.result);
-            };
-
-            reader.readAsDataURL(file);
+            compressImage(file, function (coverData) {
+                createNewBook(coverData);
+            });
         } else {
             createNewBook("");
         }
@@ -237,7 +327,8 @@ function createNewBook(coverImage) {
 
     books.push(newBook);
 
-    saveBooks();
+    saveBookToCloud(newBook).catch(cloudError);
+
     updateAll();
     resetForm();
 }
@@ -476,7 +567,8 @@ function deleteBook(id) {
 
     books = books.filter(item => item.id !== id);
 
-    saveBooks();
+    deleteBookFromCloud(id).catch(cloudError);
+
     closeBookModal();
     updateAll();
 }
@@ -659,7 +751,7 @@ setGoalBtn.addEventListener("click", function () {
 
     yearlyGoalValue = goal;
 
-    localStorage.setItem("yearlyGoal", yearlyGoalValue);
+    saveSettings().catch(cloudError);
 
     updateAll();
 });
@@ -817,11 +909,8 @@ function getYesterdayDate() {
 /* ================= UPDATE READING STREAK ================= */
 
 function updateStreakDisplay() {
-    const streak = Number(
-        localStorage.getItem("readingStreak")
-    ) || 0;
-
-    const lastDate = localStorage.getItem("lastReadingDate");
+    const streak = streakValue;
+    const lastDate = lastReadingDateValue;
     const today = getTodayDate();
 
     readingStreak.textContent =
@@ -854,24 +943,19 @@ readTodayBtn.addEventListener("click", function () {
     const today = getTodayDate();
     const yesterday = getYesterdayDate();
 
-    const lastDate = localStorage.getItem("lastReadingDate");
-
-    let streak = Number(
-        localStorage.getItem("readingStreak")
-    ) || 0;
-
-    if (lastDate === today) {
+    if (lastReadingDateValue === today) {
         return;
     }
 
-    if (lastDate === yesterday) {
-        streak++;
+    if (lastReadingDateValue === yesterday) {
+        streakValue++;
     } else {
-        streak = 1;
+        streakValue = 1;
     }
 
-    localStorage.setItem("readingStreak", streak);
-    localStorage.setItem("lastReadingDate", today);
+    lastReadingDateValue = today;
+
+    saveSettings().catch(cloudError);
 
     updateStreakDisplay();
 });
@@ -1098,12 +1182,6 @@ document.querySelectorAll(
 });
 
 
-/* ================= INITIAL LOAD ================= */
-
-updateAll();
-
-showPage("home");
-
 /* ================= STATISTICS CARD CLICK ================= */
 
 function openBooksFromStatistics(filter) {
@@ -1114,7 +1192,7 @@ function openBooksFromStatistics(filter) {
         bookSearch.value = "";
     }
 
-    // সংশ্লিষ্ট ফিল্টার সক্রিয় করো
+    // সংশ্লিষ্ট ফিল্টার সক্রিয় করো
     filterButtons.forEach(button => {
         const selectedFilter =
             filter === "__YEAR__" || filter === "__RATED__"
@@ -1127,10 +1205,10 @@ function openBooksFromStatistics(filter) {
         );
     });
 
-    // বইয়ের পেজ দেখাও
+    // বইয়ের পেজ দেখাও
     showPage("books");
 
-    // বইয়ের তালিকা আপডেট করো
+    // বইয়ের তালিকা আপডেট করো
     displayBooks();
 
     window.scrollTo({
@@ -1175,3 +1253,11 @@ document.querySelectorAll(".statistics-card").forEach((card, index) => {
         }
     });
 });
+
+
+/* ================= INITIAL LOAD =================
+   বইয়ের ডেটা আসে লগইনের পর (cloud.js থেকে) */
+
+updateAll();
+
+showPage("home");
