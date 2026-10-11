@@ -38,6 +38,113 @@
             font: inherit;
         }
     `;
+
+    /* ---------- ছোট (compact) বইয়ের কার্ড: ছবি বাঁয়ে, তথ্য ডানে ---------- */
+
+    style.textContent += `
+        #statsBooksPanel .bookshelf {
+            display: grid !important;
+            grid-template-columns: 1fr !important;
+            gap: 12px !important;
+        }
+
+        @media (min-width: 768px) {
+            #statsBooksPanel .bookshelf {
+                grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)) !important;
+            }
+        }
+
+        #statsBooksPanel .book-card {
+            display: flex !important;
+            flex-direction: row !important;
+            align-items: stretch !important;
+            height: auto !important;
+            min-height: 150px;
+            padding: 0 !important;
+            overflow: hidden !important;
+            border-radius: 14px !important;
+        }
+
+        #statsBooksPanel .book-cover {
+            width: 100px !important;
+            min-width: 100px !important;
+            height: auto !important;
+            flex-shrink: 0 !important;
+            margin: 0 !important;
+        }
+
+        #statsBooksPanel .book-cover img,
+        #statsBooksPanel .book-cover .book-placeholder {
+            width: 100% !important;
+            height: 100% !important;
+            min-height: 150px;
+            object-fit: cover !important;
+            border-radius: 0 !important;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+        }
+
+        #statsBooksPanel .book-info {
+            flex: 1 !important;
+            min-width: 0 !important;
+            padding: 10px 12px !important;
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 4px !important;
+        }
+
+        #statsBooksPanel .book-info h3 {
+            margin: 0 !important;
+            font-size: 1rem !important;
+            line-height: 1.3 !important;
+        }
+
+        #statsBooksPanel .book-info p {
+            margin: 0 !important;
+            font-size: .83rem !important;
+            line-height: 1.35 !important;
+        }
+
+        #statsBooksPanel .book-status {
+            align-self: flex-start !important;
+            padding: 2px 10px !important;
+            font-size: .72rem !important;
+        }
+
+        #statsBooksPanel .book-rating {
+            margin: 0 !important;
+            font-size: .75rem !important;
+            line-height: 1.2 !important;
+        }
+
+        /* রিভিউ মাত্র ২ লাইন, বাকিটা View Details-এ */
+        #statsBooksPanel .book-review {
+            margin: 2px 0 !important;
+            padding: 6px 8px !important;
+            font-size: .8rem !important;
+            line-height: 1.4 !important;
+            display: -webkit-box !important;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden !important;
+        }
+
+        /* Edit / Delete এখন View Details-এর ভেতরে আছে */
+        #statsBooksPanel .book-actions {
+            display: none !important;
+        }
+
+        #statsBooksPanel .details-btn {
+            width: auto !important;
+            align-self: flex-start !important;
+            margin: 2px 0 0 !important;
+            padding: 7px 14px !important;
+            font-size: .82rem !important;
+        }
+    `;
+
     document.head.appendChild(style);
 
     /* ---------- বইয়ের তালিকার জায়গা (Statistics পেজে) ---------- */
