@@ -1,5 +1,5 @@
 /* =========================================================
-   📚 বইয়ের তাক: Home পেজে কাঠের তাকে সবার (বা শুধু নিজের) বইয়ের কভার সাজানো
+   📚 বইয়ের তাক: Home পেজের উপরে কাঠের তাকে সবার (বা শুধু নিজের) বইয়ের কভার সাজানো
    script.js-এর পরে লোড হয়। script.js বদলাতে হয় না।
 ========================================================= */
 
@@ -41,15 +41,17 @@
         .shelf-head h3 { margin: 0; }
         .shelf-count { color: #80644c; font-size: .9rem; }
         .shelf-toggle { display: flex; gap: 6px; margin: 0 0 14px; flex-wrap: wrap; }
+        .shelf-toggle { flex-wrap: nowrap; }
         .shelf-toggle button {
-            padding: 7px 14px;
+            white-space: nowrap;
+            padding: 6px 11px;
             border: 1px solid #d7c1a7;
             border-radius: 20px;
             background: #f5ebde;
             color: #593a25;
             cursor: pointer;
             font: inherit;
-            font-size: .85rem;
+            font-size: .8rem;
         }
         .shelf-toggle button.active {
             background: #6b4228;
@@ -177,6 +179,10 @@
             font-size: .9rem;
         }
     `;
+    style.textContent += `
+        #homePage .hero { display: none !important; }
+        #homePage > .recent-books-card:first-child { margin-top: 16px; }
+    `;
     document.head.appendChild(style);
 
     /* ---------- SECTION ---------- */
@@ -200,13 +206,9 @@
         </div>
     `;
 
-    const recentCard = homePage.querySelector(".recent-books-card");
+    /* Home পেজের একদম উপরে বসানো (আগের "My Reading Journey" ছবির জায়গায়) */
 
-    if (recentCard) {
-        recentCard.insertAdjacentElement("afterend", section);
-    } else {
-        homePage.appendChild(section);
-    }
+    homePage.insertBefore(section, homePage.firstChild);
 
     const body = document.getElementById("shelfBody");
     const countEl = document.getElementById("shelfCount");
