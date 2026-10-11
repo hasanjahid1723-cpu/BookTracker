@@ -145,6 +145,55 @@
         }
     `;
 
+
+    /* ---------- মোবাইলে Statistics-এর কার্ড ছোট: এক সারিতে ৩টা ---------- */
+
+    style.textContent += `
+        @media (max-width: 768px) {
+            #statisticsPage .statistics-grid {
+                display: grid !important;
+                grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+                gap: 10px !important;
+            }
+
+            #statisticsPage .statistics-card {
+                display: flex !important;
+                flex-direction: column !important;
+                align-items: center !important;
+                justify-content: center !important;
+                text-align: center !important;
+                gap: 4px !important;
+                height: auto !important;
+                min-height: 0 !important;
+                padding: 16px 6px !important;
+                border-radius: 16px !important;
+            }
+
+            #statisticsPage .statistics-card::before,
+            #statisticsPage .statistics-card::after {
+                display: none !important;
+            }
+
+            #statisticsPage .statistics-card span {
+                margin: 0 !important;
+                font-size: 1.6rem !important;
+                line-height: 1 !important;
+            }
+
+            #statisticsPage .statistics-card h3 {
+                margin: 2px 0 0 !important;
+                font-size: .72rem !important;
+                line-height: 1.2 !important;
+            }
+
+            #statisticsPage .statistics-card strong {
+                margin: 0 !important;
+                font-size: 1.5rem !important;
+                line-height: 1.1 !important;
+            }
+        }
+    `;
+
     document.head.appendChild(style);
 
     /* ---------- বইয়ের তালিকার জায়গা (Statistics পেজে) ---------- */
