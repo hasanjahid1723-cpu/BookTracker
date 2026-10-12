@@ -1,5 +1,6 @@
 /* =========================================================
-   📚 বইয়ের তাক: Home পেজের উপরে কাঠের তাকে সবার (বা শুধু নিজের) বইয়ের কভার সাজানো
+   📚 বইয়ের তাক: Home পেজের উপরে ক্যাটাগরি অনুযায়ী আলাদা আলাদা কাঠের তাক
+   (থ্রিলার / হরর / সামাজিক + রোমান্টিক / বাকি সব)
    script.js-এর পরে লোড হয়। script.js বদলাতে হয় না।
 ========================================================= */
 
@@ -8,10 +9,39 @@
 
     if (!homePage || typeof window.updateAll !== "function") return;
 
+    /* ---------------------------------------------------------
+       তাকের ক্যাটাগরি। বইয়ের Genre-এ নিচের কোনো শব্দ থাকলে বইটা ওই তাকে যায়।
+       নতুন শব্দ বা নতুন তাক যোগ করতে এই তালিকা বদলান।
+       ওপর থেকে নিচে যেটা আগে মিলবে, বইটা সেই তাকে যাবে।
+    --------------------------------------------------------- */
+
+    const CATEGORIES = [
+        {
+            name: "Thriller",
+            icon: "🔪",
+            match: ["থ্রিলার", "thriller", "মিস্ট্রি", "mystery", "রহস্য",
+                    "crime", "ক্রাইম", "গোয়েন্দা", "detective", "সাসপেন্স",
+                    "suspense", "অ্যাকশন", "action"]
+        },
+        {
+            name: "Horror",
+            icon: "👻",
+            match: ["হরর", "horror", "ভৌতিক", "ভূত", "ghost",
+                    "অতিপ্রাকৃত", "supernatural"]
+        },
+        {
+            name: "Social + Romantic",
+            icon: "💞",
+            match: ["সামাজিক", "social", "রোমান্টিক", "romantic", "romance",
+                    "প্রেম", "love"]
+        }
+    ];
+
+    const OTHERS = { name: "Others", icon: "📚" };
+
     const BOOK_W = 66;
     const GAP = 10;
     const PAD = 12;
-    const MAX_ROWS = 3;
 
     const COLORS = ["#8e3b46", "#3d5a80", "#4f772d", "#b5651d",
                     "#6a4c93", "#2a7f7f", "#a23e48", "#5c6b73"];
@@ -22,7 +52,6 @@
         "Want to Read": "#3d7be0"
     };
 
-    let showAll = false;
     let shelfMode = "all";   /* "all" = সবার বই, "mine" = শুধু নিজের */
     let lastWidth = 0;
 
@@ -30,6 +59,9 @@
 
     const style = document.createElement("style");
     style.textContent = `
+        #homePage .hero { display: none !important; }
+        #homePage > .recent-books-card:first-child { margin-top: 16px; }
+
         .shelf-head {
             display: flex;
             justify-content: space-between;
@@ -40,8 +72,8 @@
         }
         .shelf-head h3 { margin: 0; }
         .shelf-count { color: #80644c; font-size: .9rem; }
-        .shelf-toggle { display: flex; gap: 6px; margin: 0 0 14px; flex-wrap: wrap; }
-        .shelf-toggle { flex-wrap: nowrap; }
+
+        .shelf-toggle { display: flex; gap: 6px; margin: 0 0 18px; flex-wrap: nowrap; }
         .shelf-toggle button {
             white-space: nowrap;
             padding: 6px 11px;
@@ -59,25 +91,57 @@
             color: #fff;
         }
 
-        .shelf-row {
-            position: relative;
+        /* একেকটা ক্যাটাগরির তাক */
+        .shelf-section { margin-bottom: 30px; }
+
+        .shelf-label {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin: 0 0 8px;
+        }
+        .shelf-label strong {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            padding: 5px 13px;
+            background: #6b4228;
+            color: #fff;
+            border-radius: 20px;
+            font-size: .82rem;
+        }
+        .shelf-label strong em {
+            font-style: normal;
+            font-weight: 600;
+            opacity: .75;
+        }
+        .shelf-label span {
+            font-size: .75rem;
+            color: #a38566;
+        }
+
+        .shelf-scroll {
             display: flex;
             align-items: flex-end;
             gap: ${GAP}px;
             min-height: 118px;
             padding: 16px ${PAD}px 0;
-            margin-bottom: 26px;
+            overflow-x: auto;
+            overflow-y: hidden;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: thin;
             background: linear-gradient(180deg, #f1e2cc, #e6d0b3);
             border-radius: 8px 8px 0 0;
             box-shadow: inset 0 10px 16px rgba(77, 48, 25, .22);
         }
-        .shelf-row::after {
+        .shelf-scroll::after {
             content: "";
-            position: absolute;
-            left: -6px;
-            right: -6px;
-            bottom: -14px;
+            flex: 0 0 2px;
+        }
+        .shelf-board {
             height: 14px;
+            margin: 0 -6px;
             background: linear-gradient(180deg, #b27a47, #7a4a26);
             border-radius: 3px;
             box-shadow: 0 7px 10px rgba(0, 0, 0, .28);
@@ -85,7 +149,7 @@
 
         .shelf-book {
             position: relative;
-            flex: 0 0 auto;
+            flex: 0 0 ${BOOK_W}px;
             width: ${BOOK_W}px;
             padding: 0;
             border: 0;
@@ -160,28 +224,12 @@
             border-radius: 50%;
             background: var(--c);
         }
-
-        .shelf-more {
-            display: block;
-            margin: 6px auto 0;
-            padding: 8px 18px;
-            border: 1px solid #d7c1a7;
-            border-radius: 9px;
-            background: #f5ebde;
-            color: #593a25;
-            cursor: pointer;
-            font: inherit;
-        }
         .shelf-empty {
             text-align: center;
-            padding: 6px 0 2px;
+            padding: 6px 0 14px;
             color: #80644c;
             font-size: .9rem;
         }
-    `;
-    style.textContent += `
-        #homePage .hero { display: none !important; }
-        #homePage > .recent-books-card:first-child { margin-top: 16px; }
     `;
     document.head.appendChild(style);
 
@@ -206,7 +254,7 @@
         </div>
     `;
 
-    /* Home পেজের একদম উপরে বসানো (আগের "My Reading Journey" ছবির জায়গায়) */
+    /* Home পেজের একদম উপরে বসানো */
 
     homePage.insertBefore(section, homePage.firstChild);
 
@@ -225,18 +273,34 @@
         return Math.abs(parseInt(id, 10) || 0);
     }
 
+    /* বইটা কোন তাকে যাবে (Genre দেখে) */
+
+    function categoryOf(book) {
+        const genre = String(book.genre || "").toLowerCase();
+
+        for (const category of CATEGORIES) {
+            for (const word of category.match) {
+                if (genre.includes(word.toLowerCase())) {
+                    return category.name;
+                }
+            }
+        }
+
+        return OTHERS.name;
+    }
+
     function bookHTML(book) {
         const h = hash(book.id);
         const height = 92 + (h % 15);
         const color = COLORS[h % COLORS.length];
         const dot = STATUS_COLOR[book.status] || "#999";
 
+        const mineBook = typeof window.isMine === "function" ? window.isMine(book) : true;
+        const label = book.name + (mineBook ? "" : " — " + (book.ownerName || "Reader"));
+
         const inner = book.cover
             ? `<img src="${esc(book.cover)}" alt="" loading="lazy">`
             : `<div class="shelf-fallback" style="background:${color}">${esc(book.name)}</div>`;
-
-        const mineBook = typeof window.isMine === "function" ? window.isMine(book) : true;
-        const label = book.name + (mineBook ? "" : " — " + (book.ownerName || "Reader"));
 
         return `
             <button type="button" class="shelf-book" data-id="${esc(book.id)}"
@@ -268,49 +332,59 @@
 
         if (list.length === 0) {
             body.innerHTML = `
-                <div class="shelf-row"></div>
-                <p class="shelf-empty">${shelfMode === "mine" ? "Your shelf is empty. Add your first book! 📖" : "No books yet. Add the first one! 📖"}</p>
+                <div class="shelf-section">
+                    <div class="shelf-scroll"></div>
+                    <div class="shelf-board"></div>
+                </div>
+                <p class="shelf-empty">${shelfMode === "mine"
+                    ? "Your shelf is empty. Add your first book! 📖"
+                    : "No books yet. Add the first one! 📖"}</p>
             `;
             return;
         }
 
+        /* বইগুলো ক্যাটাগরি অনুযায়ী ভাগ করা */
+
+        const groups = {};
+
+        list.forEach(function (book) {
+            const key = categoryOf(book);
+
+            if (!groups[key]) groups[key] = [];
+
+            groups[key].push(book);
+        });
+
+        const order = CATEGORIES.concat([OTHERS]);
+
         const width = body.clientWidth || section.clientWidth || 320;
         const perRow = Math.max(1, Math.floor((width - PAD * 2 + GAP) / (BOOK_W + GAP)));
 
-        const rows = [];
+        body.innerHTML = order
+            .filter(function (category) {
+                return groups[category.name] && groups[category.name].length;
+            })
+            .map(function (category) {
+                const items = groups[category.name];
+                const hint = items.length > perRow ? "swipe ›" : "";
 
-        for (let i = 0; i < list.length; i += perRow) {
-            rows.push(list.slice(i, i + perRow));
-        }
-
-        const visibleRows = showAll ? rows : rows.slice(0, MAX_ROWS);
-
-        let html = visibleRows.map(function (row) {
-            return `<div class="shelf-row">${row.map(bookHTML).join("")}</div>`;
-        }).join("");
-
-        if (rows.length > MAX_ROWS) {
-            html += `
-                <button type="button" class="shelf-more" id="shelfMore">
-                    ${showAll ? "Show less ▴" : "Show all " + list.length + " books ▾"}
-                </button>
-            `;
-        }
-
-        body.innerHTML = html;
+                return `
+                    <div class="shelf-section">
+                        <div class="shelf-label">
+                            <strong>${category.icon} ${esc(category.name)} <em>${items.length}</em></strong>
+                            <span>${hint}</span>
+                        </div>
+                        <div class="shelf-scroll">${items.map(bookHTML).join("")}</div>
+                        <div class="shelf-board"></div>
+                    </div>
+                `;
+            })
+            .join("");
     }
 
     /* ---------- EVENTS ---------- */
 
     body.addEventListener("click", function (event) {
-        const more = event.target.closest("#shelfMore");
-
-        if (more) {
-            showAll = !showAll;
-            render();
-            return;
-        }
-
         const bookButton = event.target.closest(".shelf-book");
 
         if (bookButton && typeof window.openBookModal === "function") {
@@ -321,7 +395,6 @@
     section.querySelectorAll(".shelf-toggle button").forEach(function (button) {
         button.addEventListener("click", function () {
             shelfMode = button.dataset.mode;
-            showAll = false;
 
             section.querySelectorAll(".shelf-toggle button").forEach(function (b) {
                 b.classList.toggle("active", b === button);
@@ -331,7 +404,7 @@
         });
     });
 
-    /* স্ক্রিনের মাপ বদলালে (বা পেজ প্রথম দেখালে) সারি নতুন করে সাজানো */
+    /* স্ক্রিনের মাপ বদলালে (বা পেজ প্রথম দেখালে) নতুন করে আঁকা */
 
     if ("ResizeObserver" in window) {
         new ResizeObserver(function () {
